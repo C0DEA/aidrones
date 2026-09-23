@@ -1,0 +1,267 @@
+\documentclass[11pt,a4paper]{article} 
+\usepackage[utf8]{inputenc} 
+\usepackage[margin=1in]{geometry} 
+\usepackage{hyperref} 
+\usepackage{listings} 
+\usepackage{xcolor} 
+\usepackage{booktabs} 
+\usepackage{microtype} 
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    citecolor=blue
+} 
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+    columns=fullflexible,
+    keepspaces=true
+} 
+
+\title{\textbf{Technical Documentation: Edge AI 7-Inch FPV Drone System}} 
+\author{\textbf{Abdallah Issa}} 
+\date{\today} 
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document details the complete end-to-end design, assembly, configuration, troubleshooting, and benchmarking of an autonomous-capable 7-inch First-Person View (FPV) drone integrated with an NVIDIA Jetson Orin Nano 8GB companion computer. The project is divided into Phase One (Drone Airframe Minimum Viable Product), Phase Two (NVIDIA Jetson Edge Computing Platform and Real-Time Computer Vision Pipeline), and Phase Three (Flight Controller Firmware Migration).
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\section{Phase One: 7-Inch FPV Drone MVP} 
+
+\subsection{Bill of Materials (Airframe \& Avionics)} 
+The 7-inch drone MVP was constructed using the following hardware components: 
+\begin{itemize}
+    \item \textbf{Frame:} GEPRC MOZ7 (7-inch long-range frame) 
+    \item \textbf{Flight Controller \& ESC Stack:} SpeedyBee F405 V4 60A Stack 
+    \item \textbf{GNSS / Compass Module:} Matek M10Q-6883 (also referred to as M10Q-5883 series during connector repair) 
+    \item \textbf{Video Transmitter (VTX):} SpeedyBee TX800 with Foxeer Antenna 
+    \item \textbf{FPV Camera:} Caddx Ratel 2 (Model Number: MN01-2000B) 
+    \item \textbf{Motors:} SpeedyBee 2807 1050KV brushless motors ($\times 4$) 
+    \item \textbf{Propellers:} GEMFAN X Street League 7043 Racing Propellers 
+    \item \textbf{Radio Receiver (RX):} SpeedyBee Nano ELRS (ExpressLRS) Receiver 
+    \item \textbf{Battery System:} Tattu R-Line 1400mAh 6S LiPo 
+\end{itemize}
+
+\subsection{Assembly, Flashing, and Calibration} 
+The physical airframe was assembled at home, with soldering assistance provided by Prof.~Baun to finalize electrical connections. Following mechanical and electrical assembly: 
+\begin{enumerate}
+    \item \textbf{Firmware Flashing:} The SpeedyBee Nano ELRS receiver was flashed with ExpressLRS firmware, and the SpeedyBee F405 V4 flight controller was flashed with Betaflight.
+    \item \textbf{Transmitter Setup:} A dedicated default radio profile was configured on the author's personal radio transmitter to match the channel mapping and switches of the ELRS receiver.
+\end{enumerate}
+
+\subsection{Flight Testing and Debugging} 
+\subsubsection{Initial Flight Attempt} 
+During the initial test flights conducted at the university, the drone failed to achieve normal flight. Diagnostic review revealed that a single configuration setting within Betaflight was incorrect, causing motor confusion and desynchronization. Once this specific parameter was identified and corrected, the issue was resolved.
+
+\subsubsection{Successful Flight and Media Coverage} 
+The subsequent university flight test proceeded smoothly, demonstrating stable flight characteristics. Photographs and project overviews were documented for a university press release regarding low-cost, AI-capable aerial platforms: 
+\begin{center}
+\url{https://www.frankfurt-university.de/de/news/n-pressemitteilungen/bauanleitungen-fuer-guenstige-und-ki-fahige-drohnen-1/} 
+\end{center}
+
+\subsubsection{Hardware Incident and Interim Repair} 
+During flight testing, the primary connector of the Matek M10Q GPS module detached from the board. To maintain operational readiness without halting testing, the redundant secondary connector on the opposite side of the module was utilized as an interim workaround. Permanent re-soldering or hardware replacement remains scheduled.
+
+\subsection{Phase One Milestone Status} 
+The default flying drone MVP is officially complete and verified. Betaflight was utilized exclusively for base-level hardware testing and manual flight tuning. For subsequent companion-computer autonomy, the flight controller firmware has been officially transitioned to ArduPilot.
+
+\newpage
+\section{Phase Two: NVIDIA Jetson Orin Nano Companion Platform} 
+
+\subsection{Hardware Setup and Specifications} 
+The onboard edge-computing subsystem comprises: 
+\begin{itemize}
+    \item \textbf{Compute Module:} NVIDIA Jetson Orin Nano 8GB (Part Number: \texttt{175-0877-000}) 
+    \item \textbf{Carrier Board:} Seeed Studio reComputer J401 Carrier Board 
+    \item \textbf{Non-Volatile Storage:} Crucial E100 480GB Gen4 PCIe NVMe M.2 SSD 
+    \item \textbf{Bench Power Supply:} 12V 7.5A external DC power adapter 
+    \item \textbf{Thermal Solution (Upgrade):} Aluminum heatsink with active external cooling fan 
+    \item \textbf{WLAN Module (Upgrade):} Intel AX200NGW M.2 Key-E Wi-Fi 6 card 
+\end{itemize}
+
+\subsection{OS Flashing and Flasher Troubleshooting} 
+Flashing the Jetson module required forcing the Tegra processor into Force Recovery Mode. A custom jumper wire was fabricated to bridge the \texttt{FC REC} and \texttt{GND} pins on the carrier board header prior to power-on. 
+
+The installation process encountered several operational hurdles: 
+\begin{enumerate}
+    \item \textbf{Native Linux Dual-Boot Preparation:} Because flashing cannot be executed reliably inside a virtual machine, a dedicated bootable USB drive containing native Ubuntu Linux was configured for dual-boot operation on a host laptop.
+    \item \textbf{Seeed Studio CLI Method:} Flashing was attempted via command-line interface following the official Seeed Studio documentation (\url{https://wiki.seeedstudio.com/reComputer_J4012_Flash_Jetpack/}). This approach consistently generated operational errors.
+    \item \textbf{NVIDIA SDK Flasher (CLI):} The native Linux flash utility was executed on the USB Ubuntu system. The flash tool initiated progress but stalled mid-execution.
+    \item \textbf{NVIDIA SDK Manager (Host Environment):} Flashing was subsequently transitioned to a dedicated Windows desktop running the official NVIDIA SDK Manager. While initial attempts experienced intermittent stalls, persistent execution finally completed the flash successfully.
+\end{enumerate}
+
+Upon first boot, the operating system kernel was verified: 
+\begin{lstlisting}[language=bash]
+$ uname -r
+5.15.148-tegra
+\end{lstlisting}
+
+\subsection{Networking Architecture and Driver Resolution} 
+\subsubsection{WLAN Driver Absence} 
+An initial attempt utilizing a USB Wi-Fi dongle failed due to a lack of plug-and-play drivers. The Intel AX200NGW M.2 card was physically installed into the M.2 Key-E slot, but remained undetected by the network subsystem. Diagnostics were conducted: 
+\begin{lstlisting}[language=bash]
+$ nmcli radio
+$ sudo modprobe iwlwifi
+$ modinfo iwlwifi
+# Output: Module iwlwifi not found
+\end{lstlisting}
+
+Inspection of the compiled kernel module directory: 
+\begin{lstlisting}[language=bash]
+$ ls /lib/modules/$(uname -r)/kernel/drivers/net/wireless/
+# Output contained: ath, broadcom, marvell, ti, rndis_wlan.ko (no intel/ folder)
+\end{lstlisting}
+This confirmed that the standard \texttt{5.15.148-tegra} kernel image distributed with this rootfs lacked the Intel \texttt{iwlwifi} driver entirely.
+
+\subsubsection{Package Repositories and DPKG Conflict Resolution} 
+A hardwired LAN connection was established. The package index was refreshed: 
+\begin{lstlisting}[language=bash]
+$ sudo apt update
+# Output: "311 packages can be upgraded..." with hits for NVIDIA r36.4 repositories
+\end{lstlisting}
+Available L4T packages were enumerated via \texttt{apt-cache search nvidia-l4t}, confirming availability of \texttt{nvidia-l4t-kernel}, \texttt{nvidia-l4t-kernel-dtbs}, \texttt{nvidia-l4t-kernel-headers}, and \texttt{nvidia-l4t-firmware}.
+
+During subsequent package maintenance, a package clash occurred between \texttt{linux-firmware-nvidia-tegra} and \texttt{nvidia-l4t-firmware} due to an overlapping binary: 
+\begin{lstlisting}
+trying to overwrite '/lib/firmware/display-t234-dce.bin', which is also in package nvidia-l4t-firmware
+\end{lstlisting}
+This interrupted the installation and triggered an OS crash reporting dialog upon reboot. The broken package state was repaired via: 
+\begin{lstlisting}[language=bash]
+$ sudo apt --fix-broken install
+\end{lstlisting}
+This completed cleanly and finalized all pending NVIDIA L4T installations.
+
+\subsubsection{Dynamic Kernel Module Injection} 
+To resolve the missing Intel module without recompiling the entire Tegra kernel, out-of-tree backported wireless modules were installed: 
+\begin{lstlisting}[language=bash]
+$ sudo apt install -y iwlwifi-modules backport-iwlwifi-dkms
+\end{lstlisting}
+Following a system reboot, module initialization was verified: 
+\begin{lstlisting}[language=bash]
+$ rfkill list all
+$ lsmod | grep iwlwifi
+$ sudo dmesg | grep iwlwifi
+\end{lstlisting}
+The logs confirmed driver initialization; however, the graphical network manager did not expose Wi-Fi. Kernel logs revealed that the interface was mapped to physical device name \texttt{wlp1p1s0} rather than standard \texttt{wlan0}, and was marked unmanaged. NetworkManager control was forcefully enabled: 
+\begin{lstlisting}[language=bash]
+$ sudo nmcli device set wlp1p1s0 managed yes
+$ sudo systemctl restart NetworkManager
+\end{lstlisting}
+The Intel AX200 Wi-Fi 6 interface immediately established full wireless connectivity.
+
+\newpage
+\subsection{Edge AI Pipeline and Inference Benchmarking} 
+
+\subsubsection{Environment Setup and Hardware Validation} 
+The Ultralytics deep learning framework was deployed: 
+\begin{lstlisting}[language=bash]
+$ pip install ultralytics
+\end{lstlisting}
+Hardware acceleration, CUDA backend recognition, and library dependencies were validated using: 
+\begin{lstlisting}[language=bash]
+$ yolo checks
+# Confirmed: Ultralytics, Python 3.10, PyTorch, and CUDA-accelerated GPU runtime
+\end{lstlisting}
+
+\subsubsection{Model Evaluation: YOLO11n vs. YOLO11s (PyTorch Baseline)} 
+A reference test video (\texttt{test\_video.mp4}) was utilized for pipeline validation: 
+\begin{enumerate}
+    \item \textbf{YOLO11n Baseline:} 
+    \begin{lstlisting}[language=bash]
+$ yolo predict model=yolo11n.pt source=test_video.mp4
+    \end{lstlisting}
+    The Nano variant (3 million parameters) yielded an average frame latency of $\sim$28\,ms ($\approx 35.7$\,FPS). However, detection accuracy exhibited an unacceptable rate of false positives on edge targets.
+    
+    \item \textbf{YOLO11s Baseline:} 
+    \begin{lstlisting}[language=bash]
+$ yolo predict model=yolo11s.pt source=test_video.mp4
+    \end{lstlisting}
+    The Small variant (9 million parameters) significantly reduced false positives but incurred higher computational latency: an average inference time of 35.1\,ms per frame ($\approx 28.5$\,FPS) under standard PyTorch execution.
+\end{enumerate}
+
+\subsubsection{TensorRT Engine Compilation and Dependency Debugging} 
+To maximize throughput, model compilation to an optimized NVIDIA TensorRT engine was initiated with FP16 half-precision: 
+\begin{lstlisting}[language=bash]
+$ yolo export model=yolo11s.pt format=engine half=true
+\end{lstlisting}
+The compile run terminated abruptly with: 
+\begin{lstlisting}
+ModuleNotFoundError: No module named 'onnx'
+\end{lstlisting}
+Inspection showed that the export routine attempted to auto-install \texttt{onnxruntime-gpu}. Because standard PyPI mirrors lack pre-compiled ARM64 wheel binaries for JetPack/CUDA 12.x, the build process failed. This was resolved by manually provisioning standard CPU translation packages: 
+\begin{lstlisting}[language=bash]
+$ pip install onnx onnxslim onnxruntime
+\end{lstlisting}
+This fulfilled the intermediate translation dependencies (including Protobuf and FlatBuffers). 
+
+The export command was executed again: 
+\begin{lstlisting}[language=bash]
+$ yolo export model=yolo11s.pt format=engine half=true
+\end{lstlisting}
+The TensorRT builder completed dynamic hardware profiling over an elapsed time of approximately 9 minutes, successfully outputting \texttt{yolo11s.engine}.
+
+\subsubsection{Optimized Benchmark Results} 
+Inference execution was evaluated using the compiled engine: 
+\begin{lstlisting}[language=bash]
+$ yolo predict model=yolo11s.engine source=test_video.mp4
+\end{lstlisting}
+Latency dropped from 35.1\,ms down to an average of \textbf{18.9\,ms per frame} (sub-20\,ms across frames), achieving an average throughput of \textbf{$\sim$55 FPS} for the 9-million-parameter model.
+
+\begin{table}[h]
+\centering
+\caption{Inference Performance Comparison on Jetson Orin Nano 8GB} 
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+\textbf{Model} & \textbf{Precision / Backend} & \textbf{Parameters} & \textbf{Inference Latency} & \textbf{Effective Frame Rate} \\ \midrule
+YOLO11n & FP32 (PyTorch) & $\sim 3\times 10^6$ & $\sim 28.0$\,ms & $\sim 35.7$ FPS \\
+YOLO11s & FP32 (PyTorch) & $\sim 9\times 10^6$ & 35.1\,ms & $\sim 28.5$ FPS \\
+\textbf{YOLO11s} & \textbf{FP16 (TensorRT)} & $\mathbf{\sim 9\times 10^6}$ & \textbf{18.9\,ms} & \textbf{$\sim 55.0$ FPS} \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Power Governor and Dynamic Clock Management} 
+The system power profile was examined via desktop management tools. As an Orin Nano 8GB (non-NX), the unit was verified at its maximum 15W operational profile (distinguished from Orin NX variants which support 25W and unrestricted MAXN modes). 
+
+To prevent dynamic CPU/GPU clock downscaling by the Linux dynamic power-saving governor during real-time edge tracking, hardware clocks were locked to physical maximums: 
+\begin{lstlisting}[language=bash]
+$ sudo jetson_clocks
+\end{lstlisting}
+This command forces all CPU cores, the Ampere GPU, and the EMC memory bus to sustain their maximum rated operating frequencies until the next reboot.
+
+\newpage
+\section{Phase Three: Flight Controller Firmware Migration}
+
+\subsection{STM32 Bootloader Driver Resolution}
+Transitioning the SpeedyBee F405 V4 stack from Betaflight to ArduPilot required flashing the flight controller in Device Firmware Upgrade (DFU) mode. Initial flashing attempts on a Windows host failed due to incorrect driver enumeration for the flight controller's STM32 processor. To resolve the USB driver conflict, the open-source utility Zadig was utilized to manually expose the \texttt{STM32 BOOTLOADER} interface and inject the universal \texttt{WinUSB} driver. This bypassed standard Windows driver allocation constraints and allowed the Betaflight Configurator to recognize the board in DFU mode.
+
+\subsection{ArduPilot Firmware Flashing}
+With DFU communication established, the Betaflight Configurator was repurposed as a flashing conduit. A pre-compiled ArduCopter firmware binary containing an integrated bootloader (\texttt{arducopter\_with\_bl.hex}) was flashed locally to the board. Following a successful flash validation, the flight controller automatically rebooted into the ArduPilot ecosystem, exiting DFU mode and exposing a standard serial COM port to the operating system.
+
+\subsection{Ground Control Station (GCS) Setup}
+Mission Planner was deployed on a Windows desktop environment to serve as the primary Ground Control Station. During the installation process, the required USB communication drivers (Arduino LLC and ArduPilot Project Ports) were installed to enable serial emulation between the desktop PC and the STM32 processor. The flight controller was subsequently connected via USB, establishing a successful telemetry link at a baud rate of 115200. This connection was verified by active attitude feedback and parameter synchronization on the primary Mission Planner Heads-Up Display (HUD).
+
+\section{Future Work and Next Steps} 
+Immediate engineering goals for the prototype build include: 
+\begin{enumerate}
+    \item \textbf{Flight Controller Telemetry Bridge:} Establishing bidirectional UART communication using MAVLink/PyMAVLink between the Jetson and the flight controller to enable hardware-to-hardware communication and autonomous command routing.
+    \item \textbf{Physical Companion Computer Integration:} Fabricating power regulation circuitry (buck converter from 6S flight battery to carrier board input) and mounting the Jetson hardware securely onto the GEPRC MOZ7 airframe.
+    \item \textbf{Lightweight Vision Loop:} Implementing a streamlined Python-based computer vision loop for the initial prototype, deferring heavier frameworks like NVIDIA DeepStream for later iterations.
+\end{enumerate}
+
+\section*{Acknowledgments and Tooling Note} 
+Physical assembly and soldering consultation was supported by Prof.~Baun. Portions of troubleshooting workflows and system configuration were guided using interactive AI diagnostic tools, with complete session logs retained for development traceability.
+
+\end{document}
